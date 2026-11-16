@@ -1,0 +1,14 @@
+export type Product = {id:string;revision:number;code:string;oem:string;barcode:string;description:string;factory:string;factory_candidates:string[];cbm:string|null;weight:string|null;issues?:string[];warnings?:string[];conflicts?:string[];sources?:{file:string;sheet:string;row:number}[]};
+export type Batch = {date:string;quantity:number};
+export type Line = {id:string;product_id:string|null;source_code:string;description:string;abc:string;warehouse:string;original_qty:number|null;updated_qty:number|null;lsd:string;suggested_dates:string[];batches:Batch[];excluded:boolean;exclusion_reason:string;quantity_note?:string;status?:string;issues:string[];product?:Product;source:{file:string;sheet:string;row:number}};
+export type Project = {id:string;revision:number;name:string;lines:Line[];allow_undated?:boolean;quantity_warnings?:string[];quantity_rules?:boolean;issue_count:number;created_at:string};
+export type ProjectSummary = Omit<Project,'lines'> & {line_count:number;quantity:number};
+export type Atom = {id:string;line_id:string;product_id:string;code:string;oem:string;barcode:string;description:string;abc:string;cbm:string;weight:string;factory:string;warehouse:string;date:string;quantity:number;load_class?:string};
+export type Allocation = {atom_id:string;quantity:number};
+export type Container = {id:string;number:number;factory:string;warehouse:string;date:string;type:string;batch_date?:string;load_class?:string;locked:boolean;allocations:Allocation[];total_cbm:string;total_weight:string};
+export type PlanSummary = {id:string;name:string;project_id:string;created_at:string;container_count:number;optimal:boolean;parent_id?:string};
+export type Plan = PlanSummary & {containers:Container[];snapshot:{project:Project;products:Product[];atoms:Atom[]};seconds:number};
+export type ImportRecord = {id:string;filename:string;status:string;kind?:string;created_at:string;processed?:number;updated_products?:number;diagnostics?:{message:string;sheet:string;row:number;values:Record<string,string>;candidates?:Product[]}[];sheets?:Record<string,{headers:Record<string,string>;header_row:number;mapping:Record<string,string>;count:number;blank_warehouse_quantities?:number;preview:{row:number;cells:Record<string,string>}[]}>};
+export type Bootstrap = {version:string;products:Product[];projects:ProjectSummary[];plans:PlanSummary[];imports:ImportRecord[];jobs:Job[];mappings:{signature:string;config:Record<string,unknown>}[];limits:Record<string,{cbm:string;weight:string}>;data_dir:string};
+export type Job = {id:string;status:string;message:string;done:number;total:number;plan_id?:string};
+export type Notice = (message:string,error?:boolean)=>void;

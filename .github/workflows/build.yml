@@ -1,0 +1,162 @@
+name: Test, build and release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  checks:
+    name: Tests, browser and manual
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          cache: pip
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: python -m pip install -r requirements-dev.txt
+      - run: npm --prefix frontend ci
+      - run: npm --prefix frontend run build
+      - name: Check program and tag versions
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [ "$REF_TYPE" = tag ]; then
+            python scripts/release_files.py --tag "$REF_NAME"
+          else
+            python scripts/release_files.py
+          fi
+      - run: python -m pytest -q
+      - run: python -m container_planner.selfcheck --output .local-data/ci-selfcheck.txt
+      - run: npx --prefix frontend playwright install --with-deps chromium
+      - run: python scripts/browser_acceptance.py
+      - name: Build offline HTML and PDF manual
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y fonts-noto-cjk
+          python scripts/create_trial_guide.py
+          node scripts/render_guide.cjs
+      - uses: actions/upload-artifact@v7
+        with:
+          name: offline-manual
+          path: |
+            docs/release/使用指南.html
+            docs/release/使用指南.pdf
+          if-no-files-found: error
+
+  package:
+    name: Package ${{ matrix.platform }}
+    needs: checks
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+          - os: macos-15
+            platform: macos-arm64
+          - os: macos-15-intel
+            platform: macos-x64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          cache: pip
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: python -m pip install -r requirements-dev.txt
+      - run: python -m pytest -q
+      - run: npm --prefix frontend ci
+      - run: npm --prefix frontend run build
+      - run: python scripts/create_trial_guide.py
+      - uses: actions/download-artifact@v8
+        with:
+          name: offline-manual
+          path: docs/release
+      - name: Build native macOS app
+        if: runner.os == 'macOS'
+        run: python scripts/build.py
+      - name: Verify native macOS app
+        if: runner.os == 'macOS'
+        run: python scripts/smoke_package.py
+      - name: Assemble macOS download
+        if: runner.os == 'macOS'
+        run: python scripts/assemble_trial.py --platform macos
+      - name: Build standalone Windows runtime
+        if: runner.os == 'Windows'
+        run: python scripts/build_windows_portable.py
+      - name: Install browser for Windows acceptance
+        if: runner.os == 'Windows'
+        run: npx --prefix frontend playwright install chromium
+      - name: Verify Windows packaged app and browser workflow
+        if: runner.os == 'Windows'
+        run: python scripts/windows_acceptance.py
+      - name: Run embedded Windows selfcheck
+        if: runner.os == 'Windows'
+        run: ./dist/WoodFlow-Windows-x64/runtime/python.exe -m container_planner.selfcheck --output .local-data/windows-selfcheck.txt
+      - name: Assemble Windows download after native acceptance
+        if: runner.os == 'Windows'
+        run: python scripts/assemble_trial.py --windows-tested
+      - name: Collect versioned download and checksum
+        run: python scripts/release_files.py --collect ${{ matrix.platform }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: WoodFlow-${{ matrix.platform }}
+          path: dist/releases/*
+          if-no-files-found: error
+
+  release:
+    name: Publish version downloads
+    needs: [checks, package]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: WoodFlow-*
+          merge-multiple: true
+          path: release-assets
+      - uses: actions/download-artifact@v8
+        with:
+          name: offline-manual
+          path: release-assets
+      - name: Publish release only when all platforms pass
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          python scripts/release_files.py --tag "$RELEASE_TAG"
+          count=$(find release-assets -maxdepth 1 -name '*.zip' | wc -l)
+          test "$count" -eq 3
+          flags=()
+          if [[ "$RELEASE_TAG" == *-* ]]; then flags+=(--prerelease); fi
+          gh release create "$RELEASE_TAG" release-assets/* --verify-tag --title "木序排柜 $RELEASE_TAG" --notes-file docs/RELEASE_NOTES.md "${flags[@]}"
