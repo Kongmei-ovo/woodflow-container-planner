@@ -55,7 +55,17 @@ def assemble(target_platform="windows", windows_tested=False):
         archive = Path(shutil.make_archive(str(target), "zip", target.parent, target.name))
     with ZipFile(archive) as zipped:
         assert zipped.testzip() is None
-        names = zipped.namelist()
+        # ditto writes UTF-8 names without ZIP's UTF-8 flag. Finder decodes them,
+        # whereas Python defaults to CP437; normalize for cross-platform auditing.
+        names = []
+        for entry in zipped.infolist():
+            name = entry.filename
+            if not entry.flag_bits & 0x800:
+                try:
+                    name = name.encode("cp437").decode("utf-8")
+                except (UnicodeEncodeError, UnicodeDecodeError):
+                    pass
+            names.append(name)
         assert any(n.endswith("/使用指南.pdf") for n in names)
         assert not any(n.lower().endswith((".xlsx", ".sqlite3", ".db")) for n in names)
     archive.with_suffix(".sha256.txt").write_text(f"{hashlib.sha256(archive.read_bytes()).hexdigest()}  {archive.name}\n", encoding="utf-8")

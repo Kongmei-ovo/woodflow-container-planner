@@ -155,6 +155,10 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           python scripts/release_files.py --tag "$RELEASE_TAG"
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Release already exists; preserving published downloads."
+            exit 0
+          fi
           count=$(find release-assets -maxdepth 1 -name '*.zip' | wc -l)
           test "$count" -eq 3
           flags=()

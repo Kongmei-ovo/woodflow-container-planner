@@ -16,8 +16,12 @@ if __name__ == "__main__":
     parser.add_argument("--package-root", type=Path)
     args = parser.parse_args()
     root = Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(root))
+    from container_planner import __version__
     binary = root / "dist" / ("WoodFlow.app/Contents/MacOS/WoodFlow" if sys.platform == "darwin" else "WoodFlow/WoodFlow.exe")
     command = [str(binary)]
+    if args.package_root and sys.platform == "darwin":
+        command = [str(args.package_root / "WoodFlow.app/Contents/MacOS/WoodFlow")]
     if args.windows_portable:
         portable = args.package_root or root / "dist/WoodFlow-Windows-x64"
         command = [str(portable / "runtime/pythonw.exe"), str(portable / "app/run_planner.py")]
@@ -41,6 +45,7 @@ if __name__ == "__main__":
                     time.sleep(.2)
             if not client:
                 raise RuntimeError("打包程序未能启动")
+            assert client.get("/api/health").json()["version"] == __version__, "打包版本与源码不一致"
             assert "root" in client.get("/").text
 
             def call(method, path, **kwargs):
