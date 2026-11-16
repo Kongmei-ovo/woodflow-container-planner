@@ -79,7 +79,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(inputs.target == 'windows' && '[{"os":"windows-latest","platform":"windows"}]' || '[{"os":"windows-latest","platform":"windows"},{"os":"macos-15","platform":"macos-arm64"},{"os":"macos-15-intel","platform":"macos-x64"}]') }}
+        include: ${{ fromJSON(inputs.target == 'windows' && github.ref_type != 'tag' && '[{"os":"windows-latest","platform":"windows"}]' || '[{"os":"windows-latest","platform":"windows"},{"os":"macos-15","platform":"macos-arm64"},{"os":"macos-15-intel","platform":"macos-x64"}]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 35
     steps:

@@ -52,7 +52,7 @@ if __name__ == "__main__":
             backup = client.get("/api/backup").content
             assert backup.startswith(b"PK")
             response = client.post("/api/restore", files={"file": ("backup.zip", backup)})
-            response.raise_for_status()
+            assert response.status_code == 200, f"恢复备份失败：{response.status_code} {response.text}"
             for _ in range(50):
                 if client.post("/api/shutdown").status_code == 200: break
                 time.sleep(.1)
