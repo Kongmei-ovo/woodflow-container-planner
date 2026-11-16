@@ -6,6 +6,10 @@ import tempfile
 import traceback
 from pathlib import Path
 
+for stream in (sys.stdout, sys.stderr):
+    if stream is not None and hasattr(stream, "reconfigure"):
+        stream.reconfigure(encoding="utf-8", errors="replace")
+
 
 def report_startup_error():
     root = (Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "WoodFlow" / "ContainerPlanner"

@@ -122,12 +122,12 @@ def build(download=True):
     (package / "WoodFlow.bat").write_text('@echo off\r\nchcp 65001 >nul\r\ncd /d "%~dp0"\r\n'
         'if not exist "runtime\\pythonw.exe" goto missing\r\nif not exist "app\\run_planner.py" goto missing\r\n'
         'if not exist "app\\frontend\\dist\\index.html" goto missing\r\n'
-        'start "" "%~dp0runtime\\pythonw.exe" "%~dp0app\\run_planner.py"\r\nexit /b 0\r\n'
+        'start "" "%~dp0runtime\\pythonw.exe" -X utf8 "%~dp0app\\run_planner.py"\r\nexit /b 0\r\n'
         ':missing\r\necho 请先右键ZIP选择全部解压，并保留runtime和app文件夹。\r\npause\r\nexit /b 1\r\n', encoding="utf-8", newline="")
     (package / "启动排柜工具.bat").write_bytes((package / "WoodFlow.bat").read_bytes())
     (package / "遇到问题请运行自检.bat").write_text('@echo off\r\nchcp 65001 >nul\r\ncd /d "%~dp0"\r\n'
         'echo 木序运行环境自检：使用虚构数据，不修改真实订单。\r\n'
-        '"%~dp0runtime\\python.exe" -m container_planner.selfcheck\r\n'
+        '"%~dp0runtime\\python.exe" -X utf8 -m container_planner.selfcheck\r\n'
         'echo.\r\necho 请将上面的结果截图，或发送提示位置的自检结果.txt。\r\npause\r\n', encoding="utf-8", newline="")
     (package / "启动说明.txt").write_text("木序 · Windows便携版\n\n请先解压整个ZIP，双击 WoodFlow.bat 或 启动排柜工具.bat。\n无需另行安装Python或Node。不要单独移动runtime或app文件夹。\n\n本包在Mac上组装，尚未在真实Windows系统运行验收。\n原始业务资料不包含在安装包中。在‘历史与备份’恢复备份即可迁移资料。\n", encoding="utf-8-sig")
     (package / "runtime-manifest.json").write_text(json.dumps(manifest, indent=2))
