@@ -6,15 +6,19 @@ const fs=require('node:fs/promises');
 const root=path.resolve(__dirname,'..');
 const base=process.env.PLANNER_TEST_URL||'http://127.0.0.1:8766';
 let activeBrowser;
+let activePage;
+let emptySandboxConfirmed=false;
 async function main(){
   const browser=await chromium.launch({headless:true});activeBrowser=browser;
   const page=await browser.newPage({viewport:{width:1440,height:1050}});
+  activePage=page;
   const errors=[];
   page.on('pageerror',e=>errors.push(e.message));
   await page.goto(base);
   await page.getByRole('heading',{name:'我的排柜'}).waitFor();
   const info=await (await page.request.get(base+'/api/bootstrap')).json();
   assert.equal(info.products.length+info.projects.length+info.imports.length,0,'E2E requires an empty disposable data directory');
+  emptySandboxConfirmed=true;
   await page.getByRole('button',{name:'设置基础资料',exact:true}).click();
   async function upload(type,file){
     if(type)await page.getByRole('button',{name:type}).click();
@@ -71,4 +75,4 @@ async function main(){
   console.log('PASS: browser imports → review/split/adjust → solver → export → reject overload → save/lock/re-solve → backup → mobile');
   await browser.close();
 }
-main().catch(async e=>{console.error(e);await activeBrowser?.close();process.exitCode=1;});
+main().catch(async e=>{console.error(e);if(activePage&&emptySandboxConfirmed){try{await activePage.screenshot({path:path.join(root,'.local-data/e2e-failure.png'),fullPage:true});console.error('Sandbox page:',await activePage.locator('body').innerText());}catch(captureError){console.error(captureError.message);}}await activeBrowser?.close();process.exitCode=1;});

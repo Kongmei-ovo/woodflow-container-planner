@@ -43,6 +43,9 @@ if __name__ == "__main__":
             env = {**os.environ, "HTTP_PROXY": "http://127.0.0.1:1", "NO_PROXY": ""}
             subprocess.run([str(package / "runtime/python.exe"), str(package / "app/run_planner.py"),
                             "--data-dir", str(data), "--no-browser"], env=env, check=True, timeout=15)
+            empty_backup = client.get("/api/backup").content
+            restored = client.post("/api/restore", files={"file": ("empty-backup.zip", empty_backup)})
+            assert restored.status_code == 200, f"恢复空资料备份失败：{restored.status_code} {restored.text}"
             subprocess.run([sys.executable, "-m", "scripts.browser_fixtures"], cwd=root, check=True)
             subprocess.run(["node", "scripts/e2e.cjs"], cwd=root, env={**os.environ, "PLANNER_TEST_URL": url}, check=True)
             # Restart from saved records and re-export the prior plan.
