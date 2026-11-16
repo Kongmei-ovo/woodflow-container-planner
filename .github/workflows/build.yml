@@ -159,6 +159,9 @@ jobs:
             echo "Release already exists; preserving published downloads."
             exit 0
           fi
+          version="${RELEASE_TAG#v}"
+          mv release-assets/使用指南.pdf "release-assets/WoodFlow-$version-Guide.pdf"
+          mv release-assets/使用指南.html "release-assets/WoodFlow-$version-Guide.html"
           count=$(find release-assets -maxdepth 1 -name '*.zip' | wc -l)
           test "$count" -eq 3
           flags=()
