@@ -9,6 +9,7 @@ import json
 import shutil
 import subprocess
 import sys
+import tempfile
 import urllib.request
 from email import message_from_bytes
 from pathlib import Path
@@ -22,15 +23,39 @@ ROOT = Path(__file__).resolve().parent.parent
 PYTHON_VERSION = "3.13.17"
 
 
+def target_environment():
+    return {**default_environment(), "sys_platform": "win32", "os_name": "nt", "platform_system": "Windows",
+            "platform_machine": "AMD64", "python_version": "3.13", "python_full_version": PYTHON_VERSION,
+            "platform_python_implementation": "CPython", "implementation_name": "cpython", "extra": ""}
+
+
+def target_requirements():
+    selected = []
+    for line in (ROOT / "requirements.txt").read_text().splitlines():
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        requirement = Requirement(line)
+        if requirement.marker and not requirement.marker.evaluate(target_environment()):
+            continue
+        requirement.marker = None
+        selected.append(str(requirement))
+    return selected
+
+
 def build(download=True):
     if not (ROOT / "frontend/dist/index.html").exists():
         raise ValueError("请先构建前端。")
     cache = ROOT / ".local-data" / "windows-wheels"
     cache.mkdir(parents=True, exist_ok=True)
     if download:
-        subprocess.run([sys.executable, "-m", "pip", "download", "-r", str(ROOT / "requirements.txt"),
-                        "colorama", "tzdata", "msvc-runtime==14.51.36231", "--dest", str(cache), "--platform", "win_amd64", "--python-version", "313",
-                        "--implementation", "cp", "--abi", "cp313", "--only-binary=:all:"], check=True)
+        # Resolve into an empty directory so an older wheel cannot be mixed into
+        # the same runtime after a dependency publishes an update.
+        with tempfile.TemporaryDirectory(prefix="resolved-windows-wheels-", dir=cache.parent) as resolved:
+            subprocess.run([sys.executable, "-m", "pip", "download", *target_requirements(),
+                            "colorama", "tzdata", "--dest", resolved, "--platform", "win_amd64", "--python-version", "313",
+                            "--implementation", "cp", "--abi", "cp313", "--only-binary=:all:"], check=True)
+            shutil.rmtree(cache)
+            shutil.copytree(resolved, cache)
     embedded = ROOT / ".local-data" / f"python-{PYTHON_VERSION}-embed-amd64.zip"
     url = f"https://www.python.org/ftp/python/{PYTHON_VERSION}/{embedded.name}"
     if not embedded.exists():
@@ -53,6 +78,8 @@ def build(download=True):
         with ZipFile(wheel) as archive:
             metadata_path = next(n for n in archive.namelist() if n.endswith(".dist-info/METADATA"))
             metadata = message_from_bytes(archive.read(metadata_path))
+            if canonicalize_name(metadata["Name"]) in distributions:
+                raise ValueError(f"依赖存在重复版本，请重新下载：{metadata['Name']}")
             distributions[canonicalize_name(metadata["Name"])] = metadata
             for name in archive.namelist():
                 if name.endswith("/"):
@@ -74,9 +101,7 @@ def build(download=True):
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes(archive.read(name))
         manifest["wheels"].append({"filename": wheel.name, "sha256": hashlib.sha256(wheel.read_bytes()).hexdigest()})
-    environment = {**default_environment(), "sys_platform": "win32", "os_name": "nt", "platform_system": "Windows",
-                   "platform_machine": "AMD64", "python_version": "3.13", "python_full_version": PYTHON_VERSION,
-                   "platform_python_implementation": "CPython", "implementation_name": "cpython", "extra": ""}
+    environment = target_environment()
     for metadata in distributions.values():
         if metadata.get("Requires-Python") and PYTHON_VERSION not in SpecifierSet(metadata["Requires-Python"]):
             raise ValueError(f"Python版本不兼容：{metadata['Name']}")

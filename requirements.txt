@@ -4,4 +4,5 @@ python-multipart==0.0.33
 ortools==9.15.6755
 platformdirs==4.14.5
 XlsxWriter==3.3.1
-msvc-runtime==14.51.36231; sys_platform == "win32"
+msvc-runtime==14.44.35112; sys_platform == "win32" and python_version < "3.12"
+msvc-runtime==14.51.36231; sys_platform == "win32" and python_version >= "3.12"
