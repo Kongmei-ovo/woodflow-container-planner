@@ -59,7 +59,9 @@ async function main(){
   await page.getByRole('button',{name:'锁定此柜',exact:true}).click();
   await page.getByRole('button',{name:'另存新版本'}).click();
   await page.waitForFunction(()=>!document.querySelector('.version-bar')?.textContent.includes('有未保存调整'));
+  const beforeRecalculation=await page.locator('.version-bar select').inputValue();
   await page.getByRole('button',{name:'保留锁柜并重新排柜'}).click();
+  await page.waitForFunction(previous=>{const current=document.querySelector('.version-bar select');return current&&current.value&&current.value!==previous;},beforeRecalculation);
   await page.waitForFunction(()=>document.querySelector('.container-heading')?.textContent.includes('解除锁定'));
   await page.getByRole('button',{name:'历史与备份',exact:true}).click();
   await page.getByRole('heading',{name:'Excel导出记录'}).waitFor();
