@@ -35,7 +35,7 @@ CI暂不可用时，维护者可以手动上传完成本机检查的试用包，
 
 ## 手动构建
 
-Actions 的“Test, build and release”提供 Run workflow。选 `main` 会构建并保留产物，不会自动创建 Release。只有版本标签会进入正式发布步骤。
+Actions 的“Test, build and release”提供 Run workflow。选 `main` 会构建并保留产物，不会自动创建 Release；target可选all或windows，便于只验证Windows。只有版本标签会进入正式发布步骤，并固定构建全部平台。
 
 Windows 便携包可在 Mac 上组装，但这不等于 Windows 原生验收。`scripts/assemble_trial.py --windows-tested` 仅供完成 Windows 验收后的 Windows 构建机使用。
 

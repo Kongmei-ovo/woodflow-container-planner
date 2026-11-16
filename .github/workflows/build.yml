@@ -7,6 +7,12 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      target:
+        description: Build all platforms or verify Windows only
+        type: choice
+        default: all
+        options: [all, windows]
 
 permissions:
   contents: read
@@ -73,13 +79,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: windows-latest
-            platform: windows
-          - os: macos-15
-            platform: macos-arm64
-          - os: macos-15-intel
-            platform: macos-x64
+        include: ${{ fromJSON(inputs.target == 'windows' && '[{"os":"windows-latest","platform":"windows"}]' || '[{"os":"windows-latest","platform":"windows"},{"os":"macos-15","platform":"macos-arm64"},{"os":"macos-15-intel","platform":"macos-x64"}]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 35
     steps:
