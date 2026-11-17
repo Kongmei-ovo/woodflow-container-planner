@@ -16,13 +16,21 @@ def test_verified_upgrade_waits_for_old_job_and_reuses_port(tmp_path):
     calls = []
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *args): pass
+        def respond(self, status, payload):
+            data = json.dumps(payload).encode()
+            self.send_response(status)
+            self.send_header('Content-Length', str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            self.wfile.flush()
         def do_GET(self):
-            self.send_response(200); self.end_headers()
-            self.wfile.write(json.dumps({'version': '1.1.0-beta.8', 'instance_id': 'test-instance'}).encode())
+            self.respond(200, {'version': '1.1.0-beta.8', 'instance_id': 'test-instance'})
         def do_POST(self):
+            # Consume the request and frame the response before closing the mock
+            # listener; macOS otherwise resets a connection with unread bytes.
+            self.rfile.read(int(self.headers.get('Content-Length', '0')))
             calls.append(self.path)
-            self.send_response(422 if len(calls) == 1 else 200); self.end_headers()
-            self.wfile.write(b'{"ok":true}')
+            self.respond(422 if len(calls) == 1 else 200, {'ok': True})
             if len(calls) > 1:
                 threading.Thread(target=server.shutdown, daemon=True).start()
     server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
