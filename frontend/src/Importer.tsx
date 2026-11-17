@@ -6,7 +6,7 @@ import type {Bootstrap,ImportRecord,ImportSheet,Notice} from './types';
 const labels:Record<string,string>={code:'产品编码 / Item ID',oem:'OEM编码',description:'产品名称',barcode:'条码',cbm:'单件体积 CBM',weight:'单件毛重 G.W',factory:'工厂（没有则使用表名）',abc:'ABC等级',status:'产品状态 NEW / CURRENT',lsd:'LSD / 交期',quantity:'数量（长表）',warehouse:'目的仓（长表）',DCSYD:'DCSYD 数量',DCBRI:'DCBRI 数量',DCVIC:'DCVIC 数量',DCFRE:'DCFRE 数量',usd:'USD价格',rmb:'RMB价格'};
 const warehouseFields=['DCSYD','DCBRI','DCVIC','DCFRE'];
 const fields:Record<string,string[]>={catalog:['code','oem','description','barcode','cbm','weight'],factory:['code','oem','description','barcode','factory','weight'],prices:['oem','code','description','usd','rmb'],order:['code','oem','barcode','description','abc','status','lsd','DCSYD','DCBRI','DCVIC','DCFRE','quantity','warehouse']};
-export default function Importer({data,refresh,notify,openProject,orderOnly=false,initialKind='order'}:{data:Bootstrap;refresh:()=>Promise<void>;notify:Notice;openProject:(id:string)=>void;orderOnly?:boolean;initialKind?:string}){
+export default function Importer({data,refresh,notify,openProject,orderOnly=false,initialKind='order'}:{data:Bootstrap;refresh:(preferredProject?:string)=>Promise<void>;notify:Notice;openProject:(id:string)=>void;orderOnly?:boolean;initialKind?:string}){
   const [imp,setImp]=useState<ImportRecord|null>(null),[kind,setKind]=useState(initialKind),[sheet,setSheet]=useState(''),[header,setHeader]=useState(1),[mapping,setMapping]=useState<Record<string,string>>({}),[name,setName]=useState(''),[year,setYear]=useState(new Date().getFullYear()),[all,setAll]=useState(true),[blankZero,setBlankZero]=useState(true),[allowUndated,setAllowUndated]=useState(true),[autoAdjust,setAutoAdjust]=useState(true),[batchDate,setBatchDate]=useState(''),[busy,setBusy]=useState(false),[result,setResult]=useState<{processed:number;updated_products:number;diagnostics:number;project_id?:string}|null>(null);
   function applySheet(record:ImportRecord,name:string,type=kind){const s=record.sheets![name];setSheet(name);setHeader(s.header_row);const saved=data.mappings.find(m=>m.signature===type+':'+name&&JSON.stringify(m.config.headers)===JSON.stringify(s.headers))?.config.mapping as Record<string,string>|undefined;const unsafe=saved&&warehouseFields.some(w=>s.column_units?.[saved[w]]==='volume');setMapping(saved&&!unsafe?saved:s.mapping);}
   const [uploadError,setUploadError]=useState<{filename:string;message:string}|null>(null);
@@ -32,7 +32,20 @@ export default function Importer({data,refresh,notify,openProject,orderOnly=fals
     }finally{if(sequence===uploadSequence.current){setBusy(false);setPendingFile('');}}
   }
 
-  async function commit(){if(!imp)return;setBusy(true);try{const res=await post<{processed:number;updated_products:number;diagnostics:number;project_id?:string}>('/imports/'+imp.id+'/commit',{kind,sheet,header_row:header,mapping,project_name:name,year,all_sheets:all,headers:imp.sheets?.[sheet].headers,blank_quantity_as_zero:blankZero,default_batch_date:batchDate,allow_undated:allowUndated,auto_adjust:autoAdjust});setResult(res);setImp(null);await refresh();notify('导入完成');}catch(e){notify((e as Error).message,true);}finally{setBusy(false);}}
+  async function commit(){
+    if(!imp)return;
+    const sequence=uploadSequence.current;setBusy(true);
+    try{
+      const res=await post<{processed:number;updated_products:number;diagnostics:number;project_id?:string}>('/imports/'+imp.id+'/commit',{kind,sheet,header_row:header,mapping,project_name:name,year,all_sheets:all,headers:imp.sheets?.[sheet].headers,blank_quantity_as_zero:blankZero,default_batch_date:batchDate,allow_undated:allowUndated,auto_adjust:autoAdjust});
+      if(sequence!==uploadSequence.current){await refresh();return;}
+      setResult(res);setImp(null);await refresh(res.project_id);
+      if(sequence!==uploadSequence.current)return;
+      if(res.project_id)openProject(res.project_id);
+      notify(res.project_id?'订单已导入，已进入当前订单审核':'导入完成');
+    }catch(e){if(sequence===uploadSequence.current)notify((e as Error).message,true);}
+    finally{if(sequence===uploadSequence.current)setBusy(false);}
+  }
+
   async function changeHeader(){if(!imp)return;setBusy(true);try{const s=await api<ImportSheet>('/imports/'+imp.id+'/sheet?sheet='+encodeURIComponent(sheet)+'&header_row='+header);setImp({...imp,sheets:{...imp.sheets,[sheet]:s}});setMapping(s.mapping);}catch(e){notify((e as Error).message,true);}finally{setBusy(false);}}
 
   const current=imp?.sheets?.[sheet];

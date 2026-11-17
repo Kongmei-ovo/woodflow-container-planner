@@ -11,5 +11,5 @@ export type Plan = PlanSummary & {containers:Container[];snapshot:{project:Proje
 export type ImportSheet = {headers:Record<string,string>;header_row:number;mapping:Record<string,string>;count:number;blank_warehouse_quantities?:number;column_units?:Record<string,string>;ambiguous_warehouses?:Record<string,string[]>;mapping_notes?:string[];order_ready?:boolean;sheet_kind?:string;preview:{row:number;cells:Record<string,string>}[]};
 export type ImportRecord = {id:string;filename:string;status:string;kind?:string;created_at:string;processed?:number;updated_products?:number;diagnostics?:{message:string;sheet:string;row:number;values:Record<string,string>;candidates?:Product[]}[];sheets?:Record<string,ImportSheet>};
 export type Bootstrap = {version:string;products:Product[];projects:ProjectSummary[];plans:PlanSummary[];imports:ImportRecord[];jobs:Job[];mappings:{signature:string;config:Record<string,unknown>}[];limits:Record<string,{cbm:string;weight:string}>;data_dir:string};
-export type Job = {id:string;status:string;message:string;done:number;total:number;plan_id?:string};
+export type Job = {id:string;project_id?:string;status:string;message:string;done:number;total:number;plan_id?:string};
 export type Notice = (message:string,error?:boolean)=>void;

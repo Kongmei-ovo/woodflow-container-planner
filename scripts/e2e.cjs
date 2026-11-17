@@ -25,14 +25,13 @@ async function main(){
     await page.getByLabel('选择Excel文件').setInputFiles(path.join(root,'.local-data/browser-fixtures',file));
     await page.getByRole('button',{name:'确认字段并导入'}).waitFor();
     await page.getByRole('button',{name:'确认字段并导入'}).click();
-    await page.getByRole('heading',{name:'资料已导入'}).waitFor();
+    await page.getByRole('heading',{name:type?'资料已导入':'订单审核',exact:true}).waitFor();
   }
   await upload(/产品排柜资料 编码/,'catalog.xlsx');
   await upload(/工厂产品表 按/,'factory.xlsx');
   await page.getByRole('button',{name:'我的排柜',exact:true}).click();
   await page.getByRole('button',{name:'新建排柜',exact:true}).click();
   await upload(null,'order.xlsx');
-  await page.getByRole('button',{name:'进入订单审核'}).click();
   await page.getByRole('button',{name:'审核第2行 DCSYD',exact:true}).click();
   await page.getByLabel('调整后排柜数量').fill('705');
   await page.getByRole('button',{name:'＋ 添加批次'}).click();
