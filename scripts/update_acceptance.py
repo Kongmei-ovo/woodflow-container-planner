@@ -24,7 +24,10 @@ def wait_health(root, expected):
         try:
             instance = json.loads((root / 'instance.json').read_text())
             with httpx.Client(base_url=instance['url'], timeout=2, trust_env=False) as client:
-                if client.get('/api/health').json()['version'] == expected:
+                health = client.get('/api/health').json()
+                # The new app reuses the port; don't return metadata read just
+                # before the old process was replaced at that same address.
+                if health['version'] == expected and health['instance_id'] == instance['id']:
                     return instance
         except (OSError, ValueError, httpx.HTTPError):
             pass
