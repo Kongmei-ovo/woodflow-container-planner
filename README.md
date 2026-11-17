@@ -85,6 +85,8 @@ npx --prefix frontend playwright install chromium
 
 ## 构建与发布
 
+安装包和交付说明书统一由 GitHub Actions 云端生成，使用公开仓库的标准托管运行器。通过 Release 链接交付，不提供本地构建包；云端失败时修复并重跑。
+
 - 每次推送 `main` 或提交 PR，自动运行测试、浏览器完整流程并构建说明书。
 - 推送与代码版本一致的 `v*` 标签，自动构建 Windows、Apple Silicon Mac、Intel Mac 包，在各原生平台验证后发布 Release。
 - 任何平台失败都不发布下载包；带 `-beta` 等后缀的版本发布为预发行版。
