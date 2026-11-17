@@ -8,6 +8,7 @@ import os
 import platform
 import re
 import shutil
+import ssl
 import stat
 import subprocess
 import sys
@@ -20,6 +21,8 @@ import urllib.request
 from pathlib import Path, PurePosixPath
 from zipfile import ZipFile
 
+import certifi
+
 from . import __version__
 from .instance import version_key
 
@@ -27,6 +30,8 @@ REPO = 'Kongmei-ovo/woodflow-container-planner'
 RELEASES = f'https://github.com/{REPO}/releases'
 API_URL = f'https://api.github.com/repos/{REPO}/releases?per_page=50'
 MAX_PACKAGE = 400_000_000
+TLS_CONTEXT = ssl.create_default_context()
+TLS_CONTEXT.load_verify_locations(cafile=certifi.where())
 
 
 def platform_label():
@@ -47,7 +52,7 @@ def atomic_json(path, data):
 
 def open_url(url, timeout=30):
     request = urllib.request.Request(url, headers={'User-Agent': 'WoodFlow-Updater/' + __version__, 'Accept': 'application/vnd.github+json' if url == API_URL else 'application/octet-stream'})
-    return urllib.request.urlopen(request, timeout=timeout)
+    return urllib.request.urlopen(request, timeout=timeout, context=TLS_CONTEXT)
 
 
 def download_url(url, version, name):

@@ -14,6 +14,7 @@ if __name__ == "__main__":
     command = [sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "--name", "WoodFlow",
                "--onedir", "--windowed", "--add-data", f"{ROOT / 'frontend' / 'dist'}{os.pathsep}frontend",
                "--collect-submodules", "ortools.sat.python", "--collect-data", "ortools",
+               "--collect-data", "certifi",
                "--hidden-import", "uvicorn.logging", "--hidden-import", "uvicorn.loops.auto",
                "--hidden-import", "uvicorn.protocols.http.auto", "--hidden-import", "uvicorn.lifespan.on"]
     if sys.platform == "darwin":
