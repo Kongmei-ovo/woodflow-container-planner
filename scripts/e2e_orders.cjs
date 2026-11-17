@@ -41,6 +41,7 @@ async function main(){
   await page.getByRole('button',{name:'清空筛选',exact:true}).first().click();
   await row.getByRole('button',{name:'查看明细',exact:true}).click();
   await page.getByRole('heading',{name:'订单审核',exact:true}).waitFor();
+  await page.getByRole('button',{name:'全部明细',exact:true}).click();
   await page.getByRole('button',{name:'我的排柜',exact:true}).click();
   page.once('dialog',d=>d.dismiss());
   await row.getByRole('button',{name:'删除',exact:true}).click();

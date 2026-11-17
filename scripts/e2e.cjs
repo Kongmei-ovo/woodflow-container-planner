@@ -26,6 +26,7 @@ async function main(){
     await page.getByRole('button',{name:'确认字段并导入'}).waitFor();
     await page.getByRole('button',{name:'确认字段并导入'}).click();
     await page.getByRole('heading',{name:type?'资料已导入':'订单审核',exact:true}).waitFor();
+    if(!type)await page.getByRole('button',{name:'全部明细',exact:true}).click();
   }
   await upload(/产品排柜资料 编码/,'catalog.xlsx');
   await upload(/工厂产品表 按/,'factory.xlsx');

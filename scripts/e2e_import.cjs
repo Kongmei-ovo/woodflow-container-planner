@@ -69,6 +69,7 @@ async function main(){
   });
   await confirm.click();
   await page.getByRole('heading',{name:'订单审核',exact:true}).waitFor();
+  await page.getByRole('button',{name:'全部明细',exact:true}).click();
   const fresh=await(await page.request.get(base+'/api/bootstrap')).json();
   const project=fresh.projects.find(p=>p.name==='grouped-order');
   assert.ok(project);

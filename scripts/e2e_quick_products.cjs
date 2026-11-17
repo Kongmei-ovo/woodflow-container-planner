@@ -16,6 +16,17 @@ async function main(){
     await page.getByLabel('订单名称',{exact:true}).fill(name);
     await page.getByRole('button',{name:'确认字段并导入',exact:true}).click();
     await page.getByRole('heading',{name:'订单审核',exact:true}).waitFor();
+    if(name==='TEST QUICK PRODUCT'){
+      const board=page.getByRole('region',{name:'问题分类'});
+      await page.getByRole('button',{name:'处理补产品 / 绑定产品',exact:true}).waitFor();
+      assert.equal(await page.getByRole('button',{name:'处理确认工厂',exact:true}).count(),0);
+      await page.locator('.review-category-board').screenshot({path:path.join(__dirname,'../.local-data/manual-review-tasks.png')});
+      await page.getByRole('button',{name:'处理补产品 / 绑定产品',exact:true}).click();
+      assert.equal(await page.getByRole('button',{name:'处理这款产品',exact:true}).count(),1,'Two warehouses must produce one product task');
+      await page.getByRole('button',{name:'处理这款产品',exact:true}).click();
+      await page.getByRole('dialog',{name:'审核订单行'}).getByRole('button',{name:'取消',exact:true}).click();
+    }
+    await page.getByRole('button',{name:'全部明细',exact:true}).click();
   }
   await importOrder('TEST QUICK PRODUCT');
   // Opening and cancelling the direct quick action must not create an orphan product.

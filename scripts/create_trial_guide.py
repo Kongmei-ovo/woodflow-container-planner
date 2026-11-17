@@ -10,7 +10,7 @@ OUT = ROOT / "docs/release"
 
 
 def image(name, label, height):
-    data = base64.b64encode(((ROOT / ".local-data" / name if name in {"manual-orders.png", "manual-updates.png", "manual-quick-product.png"} else ROOT / "docs/assets" / name)).read_bytes()).decode()
+    data = base64.b64encode(((ROOT / ".local-data" / name if name in {"manual-orders.png", "manual-updates.png", "manual-quick-product.png", "manual-review-tasks.png"} else ROOT / "docs/assets" / name)).read_bytes()).decode()
     return f'<figure><img alt="{label}" style="max-height:{height}px" src="data:image/png;base64,{data}"><figcaption>{label}（图中均为练习数据）</figcaption></figure>'
 
 
@@ -23,7 +23,7 @@ if __name__ == "__main__":
 <h2>2. 第一次先试练习示例</h2><p>首页点击<strong>“先用练习示例体验”</strong>，会载入三家工厂的虚构产品和一份带“【练习】”的订单。已有业务资料时，此按钮不会覆盖它们。</p>
 '''+image("manual-review.png", "订单按三步处理：导入订单 → 处理问题 → 排柜并导出", 260)+'''
 <h2>3. 练习的成功标志</h2><p>把 700 件床头柜分为 <strong>2027-01-11 发 350 件、2027-01-18 发 350 件</strong>，保存后生成排柜方案并下载 Excel。默认结果为 4 个柜，三家工厂分别安排。</p><p class="muted">练习数据会留在历史中并标明“【练习】”。真实订单请通过“我的排柜 → 新增订单”另建，不要修改练习订单充当真实订单。</p>''')
-    pages.append('''<div class="kicker">使用指南 · 2 / 7</div><h1>“需要确认”到底要做什么？</h1><p>系统只会拦下缺少依据或分配不一致的行。表格会写出处理内容，点击右侧<strong>“处理”</strong>查看原因与要填写的内容。</p>'''+image("manual-reason.png", "先看原因，再按“请你确认”填写", 160)+'''
+    pages.append('''<div class="kicker">使用指南 · 2 / 7</div><h1>“需要确认”到底要做什么？</h1><p>先看问题总览：仅显示当前存在的问题类型及待处理款数/行数。点击分类后处理，完成后返回总览继续下一类；全部就绪才能进入排柜。需要复查或批量处理时点击“全部明细”。</p>'''+(image("manual-review-tasks.png", "按问题分类处理，产品任务按款去重", 160) if (ROOT / ".local-data/manual-review-tasks.png").exists() else image("manual-reason.png", "先看原因，再按“请你确认”填写", 160))+'''
 <table><tr><th>提示</th><th>原因与操作</th></tr><tr><td>多个交期，数量未拆分</td><td>订单列了多个日期，但未说明每次发多少。添加各批次日期与数量，合计等于本行排柜数量。</td></tr><tr><td>订单产品尚未对应到产品资料</td><td>选择正确产品。先按编码、OEM或名称搜索，并核对款式、颜色；找不到时直接点击本行“快速补新品”。</td></tr><tr><td>产品所属工厂未确认</td><td>不同工厂不能合柜。点击本行“就地补资料”，核实该款由哪家工厂供货并保存。</td></tr><tr><td>体积、毛重缺失或冲突</td><td>按一件完整产品的全部包装核实 CBM（m³）和毛重（kg），不要把净重当作毛重。</td></tr><tr><td>批次数量与排柜数量不一致</td><td>对照提示的合计与差额，修正分配。增减了排柜数量，也要同步修改各批次数量。</td></tr></table>
 <h2>练习：填写两次发货</h2><ol><li>打开练习床头柜那一行，点击“添加批次”。第一个日期选 2027-01-11，数量填 350。</li><li>再次“添加批次”，日期选 2027-01-18，数量填 350。检查“已分配 700 / 700 件”。</li><li>点击底部“保存审核结果”。待确认行清零后，点击右上角“进入排柜”。</li></ol>
 <div class="note">不要求重新审核已经就绪的每一行。问题类型的行数可能重叠，同一行可能同时缺少产品、工厂或交期。</div>

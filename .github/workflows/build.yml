@@ -75,6 +75,7 @@ jobs:
             .local-data/manual-orders.png
             .local-data/manual-updates.png
             .local-data/manual-quick-product.png
+            .local-data/manual-review-tasks.png
             .local-data/mobile.png
             .local-data/guide-page-*.png
             .local-data/e2e-failure.png
