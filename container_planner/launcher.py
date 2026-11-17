@@ -18,6 +18,7 @@ from platformdirs import user_data_path
 from .api import create_app
 from . import __version__
 from .instance import StartupLock, coordinate
+from .updates import managed_command, spawn, activate_managed
 
 
 def resources():
@@ -46,6 +47,10 @@ def main():
     startup = StartupLock(root)
     startup.acquire()
     try:
+        managed = managed_command(root, __version__)
+        if managed:
+            spawn(managed, root, no_browser=args.no_browser, port=args.port)
+            return
         reuse_url, freed_port = coordinate(instance, __version__)
         if reuse_url:
             if not args.no_browser:
@@ -71,7 +76,10 @@ def run_server(root, instance, args, freed_port, startup):
     from .store import uid
     instance_id = uid()
     app.state.instance_id = instance_id
+    app.state.update_auto_check = not args.no_browser
+    app.state.no_browser = args.no_browser
     app.router.add_event_handler("startup", startup.release)
+    app.router.add_event_handler("startup", lambda: activate_managed(root, __version__))
     server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_config=None,
                                           proxy_headers=False, access_log=False))
     app.state.shutdown = lambda: setattr(server, "should_exit", True)

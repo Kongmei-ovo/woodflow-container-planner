@@ -31,6 +31,7 @@ if __name__ == "__main__":
             subprocess.run(["node", "scripts/e2e.cjs"], cwd=ROOT, env={**os.environ, "PLANNER_TEST_URL":url}, check=True)
             subprocess.run(["node", "scripts/e2e_import.cjs"], cwd=ROOT, env={**os.environ, "PLANNER_TEST_URL":url}, check=True)
             subprocess.run(["node", "scripts/e2e_orders.cjs"], cwd=ROOT, env={**os.environ, "PLANNER_TEST_URL":url}, check=True)
+            subprocess.run(["node", "scripts/e2e_updates.cjs"], cwd=ROOT, env={**os.environ, "PLANNER_TEST_URL":url}, check=True)
         finally:
             if url:
                 try:

@@ -27,6 +27,7 @@ from .service import candidates, commit_import, product_issues, project_view, sn
 from .solver import LIMITS, decorate, validate
 from .store import Conflict, Store, uid, now
 from . import __version__
+from .updates import UpdateManager, atomic_json
 
 
 def create_app(root: Path | None = None, frontend: Path | None = None):
@@ -35,6 +36,7 @@ def create_app(root: Path | None = None, frontend: Path | None = None):
     app.state.store = store
     app.state.processes = {}
     app.state.operation_lock = threading.RLock()
+    app.state.updates = UpdateManager(store.root)
     request_lock = asyncio.Lock()
 
     @app.middleware("http")
@@ -82,7 +84,63 @@ def create_app(root: Path | None = None, frontend: Path | None = None):
                 "plans": plans, "imports": [{k: v for k, v in imp.items() if k not in ("diagnostics", "sheets")}
                                               for imp in store.list("import")],
                 "jobs": [{k: v for k, v in j.items() if k not in ("snapshot", "locked")} for j in store.list("job")[-10:]],
-                "mappings": store.list("mapping"), "limits": LIMITS, "data_dir": str(store.root), "version": __version__}
+                "mappings": store.list("mapping"), "limits": LIMITS, "data_dir": str(store.root), "version": __version__,
+                "update_auto_check": getattr(app.state, "update_auto_check", False),
+                "update_backup_available": (store.root / "update-backups/latest.json").is_file()}
+
+    @app.get("/api/updates")
+    def update_status():
+        return app.state.updates.status()
+
+    @app.post("/api/updates/check")
+    def check_updates():
+        return app.state.updates.check()
+
+    @app.post("/api/updates/install")
+    def prepare_update(payload: dict = Body(...)):
+        return app.state.updates.install(payload.get("version"))
+
+    @app.post("/api/updates/restart")
+    def restart_update():
+        with app.state.operation_lock:
+            if any(p.is_alive() for p in app.state.processes.values()):
+                raise ValueError("正在排柜，请计算完成后再重启更新。")
+            if app.state.updates.status()["status"] != "ready":
+                raise ValueError("请先下载并准备更新。")
+            folder = store.root / "update-backups"
+            folder.mkdir(exist_ok=True)
+            name = f"before-update-{__version__}-{uid()[:8]}.zip"
+            path = folder / name
+            try:
+                with tempfile.TemporaryDirectory() as directory:
+                    target = Path(directory) / "planner.sqlite3"
+                    with store.connection() as db, closing(sqlite3.connect(target)) as dest:
+                        db.backup(dest)
+                    with ZipFile(path, "w", ZIP_DEFLATED) as archive:
+                        archive.write(target, "planner.sqlite3")
+                        archive.writestr("manifest.json", json.dumps({"version": 1}))
+                        for sub in ("originals", "exports"):
+                            for source in (store.root / sub).iterdir():
+                                if source.is_file():
+                                    archive.write(source, f"{sub}/{source.name}")
+                atomic_json(folder / "latest.json", {"filename": name})
+            except Exception:
+                path.unlink(missing_ok=True)
+                raise ValueError("更新前自动备份失败，当前版本继续运行。请检查磁盘空间后重试。")
+            return app.state.updates.restart(no_browser=getattr(app.state, "no_browser", False))
+
+    @app.get("/api/updates/backup")
+    def update_backup():
+        try:
+            name = json.loads((store.root / "update-backups/latest.json").read_text())["filename"]
+            if Path(name).name != name or "\\" in name:
+                raise ValueError()
+            path = store.root / "update-backups" / name
+            if not path.is_file():
+                raise ValueError()
+        except (OSError, KeyError, ValueError):
+            raise HTTPException(status_code=404, detail="尚无更新前备份。")
+        return FileResponse(path, filename=name)
 
     @app.post("/api/demo")
     def demo():

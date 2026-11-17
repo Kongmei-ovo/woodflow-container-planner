@@ -64,7 +64,7 @@ jobs:
           sudo apt-get install -y fonts-noto-cjk poppler-utils
           python scripts/create_trial_guide.py
           node scripts/render_guide.cjs
-          test "$(pdfinfo docs/release/使用指南.pdf | awk '/^Pages:/ {print $2}')" -eq 5
+          test "$(pdfinfo docs/release/使用指南.pdf | awk '/^Pages:/ {print $2}')" -eq 6
           pdftoppm -scale-to 1100 -png docs/release/使用指南.pdf .local-data/guide-page
       - uses: actions/upload-artifact@v7
         if: always()
@@ -73,6 +73,7 @@ jobs:
           include-hidden-files: true
           path: |
             .local-data/manual-orders.png
+            .local-data/manual-updates.png
             .local-data/mobile.png
             .local-data/guide-page-*.png
             .local-data/e2e-failure.png
@@ -141,6 +142,8 @@ jobs:
         run: python scripts/assemble_trial.py --windows-tested
       - name: Collect versioned download and checksum
         run: python scripts/release_files.py --collect ${{ matrix.platform }}
+      - name: Verify native updater and old entry after restart
+        run: python scripts/update_acceptance.py
       - uses: actions/upload-artifact@v7
         if: failure()
         with:

@@ -1,0 +1,54 @@
+// Update UI states use synthetic API responses; package execution is verified natively in CI.
+const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'../frontend/node_modules/playwright');
+const path=require('node:path');
+const assert=require('node:assert/strict');
+const base=process.env.PLANNER_TEST_URL;
+let browser,page;
+async function main(){
+  browser=await chromium.launch({headless:true});page=await browser.newPage({viewport:{width:1440,height:1000}});
+  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  let state={status:'available',message:'发现新版本，可下载并准备更新。',current_version:'1.1.0-beta.10',latest_version:'1.1.0-beta.11',platform:'Windows64',release_url:'https://github.com/Kongmei-ovo/woodflow-container-planner/releases/tag/v1.1.0-beta.11',notes:'TEST update notes',downloaded:0,total:100};
+  await page.route('**/api/updates/check',route=>route.fulfill({json:state}));
+  await page.route('**/api/updates',route=>route.fulfill({json:state}));
+  let installed=0,restarted=0;
+  await page.route('**/api/updates/install',route=>{installed++;assert.equal(route.request().postDataJSON().version,'1.1.0-beta.11');state={...state,status:'downloading',message:'正在下载官方更新包…',downloaded:50};return route.fulfill({json:state});});
+  await page.route('**/api/updates/restart',route=>{restarted++;return route.fulfill({status:422,json:{detail:'TEST restart blocked while solving'}});});
+  await page.goto(base);await page.getByRole('heading',{name:'我的排柜',exact:true}).waitFor();
+  await page.getByRole('button',{name:'检查更新',exact:true}).click();
+  const modal=page.getByRole('dialog',{name:'版本与更新'});
+  await modal.getByRole('button',{name:'下载并准备更新',exact:true}).click();
+  await modal.getByRole('progressbar',{name:'更新包下载进度'}).waitFor();
+  assert.equal(installed,1);
+  await modal.getByRole('button',{name:'关闭',exact:true}).click();
+  await page.getByRole('button',{name:'版本与更新',exact:true}).click();
+  await modal.getByRole('progressbar').waitFor();
+  state={...state,status:'ready',message:'新版已通过启动检查，保存工作后即可重启更新。',downloaded:100};
+  await modal.getByRole('button',{name:'已保存，重启更新',exact:true}).waitFor();
+  await modal.getByRole('button',{name:'已保存，重启更新',exact:true}).click();
+  await modal.getByText('TEST restart blocked while solving',{exact:true}).waitFor();
+  assert.equal(restarted,1);
+  await modal.getByRole('button',{name:'关闭',exact:true}).click();
+  // Existing plan: unsaved adjustments must disable restarting an already prepared update.
+  const data=await(await page.request.get(base+'/api/bootstrap')).json();
+  assert.ok(data.products.every(p=>['A','B','C'].includes(p.code)&&p.description.startsWith('TEST ')));
+  await page.getByRole('button',{name:'打开方案',exact:true}).first().click();
+  await page.locator('.container-option').first().waitFor();
+  await page.getByRole('button',{name:/锁定此柜/}).click();
+  await page.getByRole('button',{name:'检查更新',exact:true}).click();
+  await modal.getByText('尚有未保存的排柜调整，请先“另存新版本”，再重启更新。',{exact:true}).waitFor();
+  assert.equal(await modal.getByRole('button',{name:'已保存，重启更新',exact:true}).isDisabled(),true);
+  await modal.getByRole('button',{name:'关闭',exact:true}).click();
+  page.once('dialog',dialog=>dialog.accept());await page.getByRole('button',{name:'我的排柜',exact:true}).click();
+  state={...state,status:'failed',message:'无法连接GitHub检查更新，请检查网络后重试，或前往下载页。',latest_version:undefined};
+  await page.getByRole('button',{name:'检查更新',exact:true}).click();
+  await modal.getByText(state.message,{exact:true}).waitFor();
+  assert.equal(await modal.getByRole('link',{name:'前往下载页'}).getAttribute('href'),state.release_url);
+  await modal.getByRole('button',{name:'关闭',exact:true}).click();
+  state={...state,status:'available',message:'发现新版本，可下载并准备更新。',latest_version:'1.1.0-beta.11'};
+  await page.getByRole('button',{name:'检查更新',exact:true}).click();
+  await modal.getByRole('button',{name:'下载并准备更新',exact:true}).waitFor();
+  await page.screenshot({path:path.join(__dirname,'../.local-data/manual-updates.png'),fullPage:true});
+  assert.deepEqual(errors,[]);
+  await browser.close();console.log('PASS updates UI: version entries → available → progress → close/reopen → ready → blocked restart → unsaved plan guard → offline fallback');
+}
+main().catch(async error=>{console.error(error);if(page){try{await page.screenshot({path:path.join(__dirname,'../.local-data/e2e-failure.png'),fullPage:true});console.error(await page.locator('body').innerText());}catch{}}await browser?.close();process.exitCode=1;});

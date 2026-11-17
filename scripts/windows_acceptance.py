@@ -50,6 +50,7 @@ if __name__ == "__main__":
             subprocess.run(["node", "scripts/e2e.cjs"], cwd=root, env={**os.environ, "PLANNER_TEST_URL": url}, check=True)
             subprocess.run(["node", "scripts/e2e_import.cjs"], cwd=root, env={**os.environ, "PLANNER_TEST_URL": url}, check=True)
             subprocess.run(["node", "scripts/e2e_orders.cjs"], cwd=root, env={**os.environ, "PLANNER_TEST_URL": url}, check=True)
+            subprocess.run(["node", "scripts/e2e_updates.cjs"], cwd=root, env={**os.environ, "PLANNER_TEST_URL": url}, check=True)
             # Restart from saved records and re-export the prior plan.
             state = client.get("/api/bootstrap").json()
             plans = state["plans"]
