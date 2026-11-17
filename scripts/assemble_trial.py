@@ -46,8 +46,8 @@ def assemble(target_platform="windows", windows_tested=False):
         pdf = ROOT / "output/pdf/木序排柜试用指南.pdf"
     shutil.copy2(pdf, target / "使用指南.pdf")
     if target_platform == "macos":
-        (target / "开始使用.txt").write_text(f"木序排柜 {VERSION} macOS {architecture}\n\n完整解压后双击WoodFlow.app，无需安装Python或Node。\n请使用与你的CPU匹配的下载包。说明书中的业务步骤同样适用。\n首次打开若被系统阻止，请核对来源后在系统设置的隐私与安全性中处理。\n更新前先备份并退出旧版；数据保存在用户目录，不在应用包内。\n", encoding="utf-8")
-    (target / "版本与测试说明.txt").write_text(f"木序排柜朋友试用版\n版本：{VERSION}\n构建日期：{date.today().isoformat()}\n平台：{label}\n\n{status}\n\n程序自带运行环境，业务资料保存在本机。包内练习数据均为虚构，不含客户订单和数据库。\n本版规则见 本版规则说明.txt。操作步骤见 使用指南.pdf 或 使用指南.html。\n请在历史与备份页面定期备份；更新前退出旧版，并解压到新目录。\n", encoding="utf-8-sig")
+        (target / "开始使用.txt").write_text(f"木序排柜 {VERSION} macOS {architecture}\n\n完整解压后双击WoodFlow.app，无需安装Python或Node。\n请使用与你的CPU匹配的下载包。说明书中的业务步骤同样适用。\n首次打开若被系统阻止，请核对来源后在系统设置的隐私与安全性中处理。\n更新前保存调整并备份；启动新版会等待旧版计算完成并自动切换。数据保存在用户目录，不在应用包内。\n", encoding="utf-8")
+    (target / "版本与测试说明.txt").write_text(f"木序排柜朋友试用版\n版本：{VERSION}\n构建日期：{date.today().isoformat()}\n平台：{label}\n\n{status}\n\n程序自带运行环境，业务资料保存在本机。包内练习数据均为虚构，不含客户订单和数据库。\n本版规则见 本版规则说明.txt。操作步骤见 使用指南.pdf 或 使用指南.html。\n请在历史与备份页面定期备份；更新前保存调整并备份，解压到新目录启动；新版会自动切换旧版，正在计算时先等待。\n", encoding="utf-8-sig")
     if target_platform == "macos":
         archive = Path(str(target) + ".zip")
         subprocess.run(["ditto", "-c", "-k", "--sequesterRsrc", "--keepParent", str(target), str(archive)], check=True)

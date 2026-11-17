@@ -61,6 +61,8 @@ if __name__ == "__main__":
                     client = httpx.Client(base_url=instance["url"], timeout=30, trust_env=False)
                     if client.get("/api/health").json().get("version") == __version__:
                         break
+                    client.close(); client = None
+                    time.sleep(.2)
                 except (OSError, ValueError, httpx.HTTPError):
                     if client:
                         client.close()

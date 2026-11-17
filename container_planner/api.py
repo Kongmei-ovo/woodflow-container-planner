@@ -244,9 +244,15 @@ def create_app(root: Path | None = None, frontend: Path | None = None):
     def restore_project(project_id: str, payload: dict = Body(...)):
         return set_deleted(project_id, payload, False)
 
+    def active_project(project_id):
+        project = store.get("project", project_id)
+        if project.get("deleted_at"):
+            raise ValueError("请先从回收站恢复订单。")
+        return project
+
     @app.patch("/api/projects/{project_id}/lines/{line_id}")
     def edit_line(project_id: str, line_id: str, payload: dict = Body(...)):
-        p = store.get("project", project_id)
+        p = active_project(project_id)
         if payload.get("revision") is None:
             raise ValueError("缺少订单版本，请刷新。")
         line = next((l for l in p["lines"] if l["id"] == line_id), None)
@@ -287,7 +293,7 @@ def create_app(root: Path | None = None, frontend: Path | None = None):
     @app.post("/api/projects/{project_id}/rules")
     def apply_project_rules(project_id: str, payload: dict = Body(...)):
         from .quantities import adjust_quantities
-        p = store.get("project", project_id)
+        p = active_project(project_id)
         if "allow_undated" in payload:
             if type(payload["allow_undated"]) is not bool:
                 raise ValueError("请选择是否允许先排柜后填写LSD。")
@@ -300,7 +306,7 @@ def create_app(root: Path | None = None, frontend: Path | None = None):
     @app.post("/api/projects/{project_id}/assign-batch")
     def assign_batch(project_id: str, payload: dict = Body(...)):
         from datetime import date
-        p = store.get("project", project_id)
+        p = active_project(project_id)
         day = date.fromisoformat(text(payload.get("date"))).isoformat()
         selected = set(payload.get("line_ids", []))
         if not selected or not selected.issubset({l["id"] for l in p["lines"]}):
@@ -316,7 +322,7 @@ def create_app(root: Path | None = None, frontend: Path | None = None):
 
     @app.post("/api/projects/{project_id}/exclude-lines")
     def exclude_lines(project_id: str, payload: dict = Body(...)):
-        p = store.get("project", project_id)
+        p = active_project(project_id)
         ids = set(payload.get("line_ids", []))
         reason = text(payload.get("reason"))
         if not reason or not ids or not ids.issubset({l["id"] for l in p["lines"]}):
