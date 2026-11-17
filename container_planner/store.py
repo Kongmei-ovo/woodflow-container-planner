@@ -98,8 +98,9 @@ class Store:
                 if kind == "project" and before:
                     previous_lines = {line["id"]: line for line in before.get("lines", [])}
                     changed_lines = [line for line in clean.get("lines", []) if line != previous_lines.get(line["id"])]
-                    before = {"name": before.get("name"), "lines": [previous_lines[l["id"]] for l in changed_lines if l["id"] in previous_lines]}
-                    after = {"name": clean.get("name"), "lines": changed_lines}
+                    fields = ("name", "customer", "notes", "deleted_at")
+                    before = {**{k: before.get(k) for k in fields}, "lines": [previous_lines[l["id"]] for l in changed_lines if l["id"] in previous_lines]}
+                    after = {**{k: clean.get(k) for k in fields}, "lines": changed_lines}
                 elif kind in {"job", "plan"}:
                     # Inputs are already preserved in immutable plan/job records.
                     before = {k: v for k, v in before.items() if k not in {"snapshot", "locked", "containers"}} if before else None

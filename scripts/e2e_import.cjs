@@ -21,7 +21,7 @@ async function main(){
   await page.waitForFunction(()=>document.querySelectorAll('.container-option').length===4);
   assert.equal(await page.locator('.version-bar select').inputValue(),oldPlan.id);
   await page.getByRole('button',{name:'我的排柜',exact:true}).click();
-  await page.getByRole('button',{name:'新建排柜',exact:true}).click();
+  await page.getByRole('button',{name:'新增订单',exact:true}).click();
   assert.equal(await page.evaluate(()=>localStorage.getItem('woodflow.project.v1')),'');
   assert.equal(await page.evaluate(()=>localStorage.getItem('woodflow.plan.v1')),'');
   const steps=page.getByRole('navigation',{name:'当前订单处理步骤'});
@@ -135,7 +135,7 @@ async function main(){
   await page.getByRole('heading',{name:'我的排柜',exact:true}).waitFor();
   assert.equal(await page.evaluate(()=>localStorage.getItem('woodflow.project.v1')),project.id);
   assert.equal(await page.evaluate(()=>localStorage.getItem('woodflow.plan.v1')),newPlanId);
-  await page.getByRole('button',{name:'新建排柜',exact:true}).click();
+  await page.getByRole('button',{name:'新增订单',exact:true}).click();
   await page.getByLabel('选择Excel文件').setInputFiles(path.join(root,'.local-data/browser-fixtures/grouped-order.xlsx'));
   await page.getByLabel('订单名称',{exact:true}).fill('background-import');
   let releaseImport,importStarted,importHandled;

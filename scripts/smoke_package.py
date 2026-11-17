@@ -27,7 +27,30 @@ if __name__ == "__main__":
         command = [str(portable / "runtime/pythonw.exe"), str(portable / "app/run_planner.py")]
     with tempfile.TemporaryDirectory(prefix="木序 启动测试-") as temp:
         directory = Path(temp)
-        process = subprocess.Popen([*command, "--data-dir", str(directory), "--no-browser"], cwd=root)
+        # Start a legacy protocol instance with synthetic records, then double-click
+        # the native package without first quitting the old app.
+        from container_planner.demo import load_demo
+        from container_planner.store import Store
+        marker = load_demo(Store(directory))['project_id']
+        legacy = subprocess.Popen([sys.executable, str(root / 'scripts/legacy_launch_fixture.py'), '--data-dir', str(directory), '--no-browser'], cwd=root)
+        old_url = None
+        try:
+            for _ in range(150):
+                if legacy.poll() is not None:
+                    raise RuntimeError('Legacy upgrade fixture exited early')
+                try:
+                    instance = json.loads((directory / 'instance.json').read_text())
+                    with httpx.Client(base_url=instance['url'], trust_env=False) as old_client:
+                        if old_client.get('/api/health').json()['version'] == '1.0.0':
+                            old_url = instance['url']; break
+                except (OSError, ValueError, httpx.HTTPError):
+                    time.sleep(.2)
+            if not old_url:
+                raise RuntimeError('Legacy upgrade fixture did not start')
+            process = subprocess.Popen([*command, "--data-dir", str(directory), "--no-browser"], cwd=root)
+        except BaseException:
+            legacy.terminate(); legacy.wait(timeout=15)
+            raise
         client = None
         try:
             for _ in range(150):
@@ -36,7 +59,7 @@ if __name__ == "__main__":
                 try:
                     instance = json.loads((directory / "instance.json").read_text())
                     client = httpx.Client(base_url=instance["url"], timeout=30, trust_env=False)
-                    if client.get("/api/health").json()["ok"]:
+                    if client.get("/api/health").json().get("version") == __version__:
                         break
                 except (OSError, ValueError, httpx.HTTPError):
                     if client:
@@ -45,6 +68,13 @@ if __name__ == "__main__":
                     time.sleep(.2)
             if not client:
                 raise RuntimeError("打包程序未能启动")
+            legacy.wait(timeout=15)
+            assert client.base_url == httpx.URL(old_url), 'Upgrade should reuse the old local URL'
+            assert client.get('/api/projects/' + marker).status_code == 200, 'Upgrade must preserve orders'
+            duplicate = subprocess.run([*command, '--data-dir', str(directory), '--no-browser'], cwd=root, timeout=15)
+            assert duplicate.returncode == 0, 'Same-version duplicate launch must reuse the running app'
+            older = subprocess.run([sys.executable, str(root / 'scripts/legacy_launch_fixture.py'), '--data-dir', str(directory), '--no-browser'], cwd=root, timeout=15)
+            assert older.returncode == 0 and process.poll() is None, 'Older app must reuse newer service'
             assert client.get("/api/health").json()["version"] == __version__, "打包版本与源码不一致"
             assert "root" in client.get("/").text
 
@@ -83,7 +113,7 @@ if __name__ == "__main__":
             else:
                 raise RuntimeError("后台计算进程未能正常结束")
             process.wait(timeout=15)
-            print("PASS: packaged runtime → CSV imports → factory isolation → spawned solver → Excel download → clean exit")
+            print("PASS: automatic upgrade takeover → data preserved → duplicate and older launches reuse newer service → packaged runtime → CSV imports → factory isolation → spawned solver → Excel download → clean exit")
         except Exception:
             log = directory / "application.log"
             if log.exists():
@@ -92,6 +122,8 @@ if __name__ == "__main__":
         finally:
             if client:
                 client.close()
+            if legacy.poll() is None:
+                legacy.terminate(); legacy.wait(timeout=15)
             if process.poll() is None:
                 process.terminate()
                 process.wait(timeout=15)

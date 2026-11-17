@@ -25,7 +25,7 @@ from .exporting import export_plan
 from .jobs import run_job
 from .service import candidates, commit_import, product_issues, project_view, snapshot_inputs
 from .solver import LIMITS, decorate, validate
-from .store import Conflict, Store, uid
+from .store import Conflict, Store, uid, now
 from . import __version__
 
 
@@ -65,14 +65,20 @@ def create_app(root: Path | None = None, frontend: Path | None = None):
         from .service import line_issues
         return [{k: v for k, v in p.items() if k != "lines"} | {
             "line_count": len(p["lines"]), "quantity": sum(l.get("updated_qty") or 0 for l in p["lines"]),
+            "warehouses": sorted({l.get("warehouse", "") for l in p["lines"]} - {""}),
+            "factories": sorted({products.get(l.get("product_id"), {}).get("factory", "") for l in p["lines"]} - {""}),
             "issue_count": sum(bool(line_issues(l, products, p.get("allow_undated", False), p.get("quantity_rules", False))) for l in p["lines"])} for p in store.list("project")]
 
     @app.get("/api/bootstrap")
     def bootstrap():
         products = store.list("product")
+        projects = list_projects()
+        active = {p["id"] for p in projects if not p.get("deleted_at")}
         plans = [{k: v for k, v in p.items() if k not in ("snapshot", "containers")} |
-                 {"container_count": len(p["containers"])} for p in store.list("plan")]
-        return {"products": [{**p, "issues": product_issues(p)} for p in products], "projects": list_projects(),
+                 {"container_count": len(p["containers"])} for p in store.list("plan") if p["project_id"] in active]
+        return {"products": [{**p, "issues": product_issues(p)} for p in products],
+                "projects": [p for p in projects if p["id"] in active],
+                "deleted_projects": [p for p in projects if p.get("deleted_at")],
                 "plans": plans, "imports": [{k: v for k, v in imp.items() if k not in ("diagnostics", "sheets")}
                                               for imp in store.list("import")],
                 "jobs": [{k: v for k, v in j.items() if k not in ("snapshot", "locked")} for j in store.list("job")[-10:]],
@@ -202,6 +208,42 @@ def create_app(root: Path | None = None, frontend: Path | None = None):
     def project_detail(project_id: str):
         return project_view(store, store.get("project", project_id))
 
+    @app.patch("/api/projects/{project_id}")
+    def edit_project(project_id: str, payload: dict = Body(...)):
+        with app.state.operation_lock:
+            project = store.get("project", project_id)
+            if project.get("deleted_at"):
+                raise ValueError("请先从回收站恢复订单。")
+            if payload.get("revision") is None:
+                raise ValueError("缺少订单版本，请刷新。")
+            for field, maximum in (("name", 160), ("customer", 160), ("notes", 2000)):
+                if field in payload:
+                    value = text(payload[field])
+                    if len(value) > maximum or (field == "name" and not value):
+                        raise ValueError(f"{'订单名称' if field == 'name' else '客户' if field == 'customer' else '备注'}不能为空或超过{maximum}字。")
+                    project[field] = value
+            return store.put("project", project, project_id, payload["revision"], "修改订单信息")
+
+    def set_deleted(project_id, payload, deleted):
+        with app.state.operation_lock:
+            project = store.get("project", project_id)
+            if payload.get("revision") is None:
+                raise ValueError("缺少订单版本，请刷新。")
+            for job in store.list("job"):
+                process = app.state.processes.get(job["id"])
+                if job.get("project_id") == project_id and process is not None and process.is_alive():
+                    raise ValueError("这份订单正在排柜，请计算完成后再操作。")
+            project["deleted_at"] = now() if deleted else None
+            return store.put("project", project, project_id, payload["revision"], "订单移入回收站" if deleted else "恢复订单")
+
+    @app.delete("/api/projects/{project_id}")
+    def delete_project(project_id: str, payload: dict = Body(...)):
+        return set_deleted(project_id, payload, True)
+
+    @app.post("/api/projects/{project_id}/restore")
+    def restore_project(project_id: str, payload: dict = Body(...)):
+        return set_deleted(project_id, payload, False)
+
     @app.patch("/api/projects/{project_id}/lines/{line_id}")
     def edit_line(project_id: str, line_id: str, payload: dict = Body(...)):
         p = store.get("project", project_id)
@@ -292,6 +334,8 @@ def create_app(root: Path | None = None, frontend: Path | None = None):
             if any(process.is_alive() for process in processes.values()):
                 raise ValueError("已有任务正在计算，请等待当前任务完成。")
             project = store.get("project", project_id)
+            if project.get("deleted_at"):
+                raise ValueError("请先从回收站恢复订单。")
             if payload.get("revision") != project["revision"]:
                 raise Conflict("订单已更新，请刷新审核结果后再排柜。")
             snapshot = snapshot_inputs(project, store.list("product"))

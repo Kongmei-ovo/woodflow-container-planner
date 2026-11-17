@@ -30,7 +30,7 @@ async function main(){
   await upload(/产品排柜资料 编码/,'catalog.xlsx');
   await upload(/工厂产品表 按/,'factory.xlsx');
   await page.getByRole('button',{name:'我的排柜',exact:true}).click();
-  await page.getByRole('button',{name:'新建排柜',exact:true}).click();
+  await page.getByRole('button',{name:'新增订单',exact:true}).click();
   await upload(null,'order.xlsx');
   await page.getByRole('button',{name:'审核第2行 DCSYD',exact:true}).click();
   await page.getByLabel('调整后排柜数量').fill('705');

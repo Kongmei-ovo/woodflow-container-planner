@@ -17,6 +17,8 @@ import uvicorn
 from platformdirs import user_data_path
 
 from .api import create_app
+from . import __version__
+from .instance import StartupLock, coordinate
 
 
 def resources():
@@ -42,24 +44,27 @@ def main():
     if not sys.stderr:
         sys.stderr = log.open("a", encoding="utf-8")
     instance = root / "instance.json"
+    startup = StartupLock(root)
+    startup.acquire()
     try:
-        old = json.loads(instance.read_text())
-        local_http = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-        with local_http.open(old["url"] + "/api/health", timeout=1) as response:
-            health = json.load(response)
-        if health.get("instance_id") == old.get("id") and health.get("instance_id"):
+        reuse_url, freed_port = coordinate(instance, __version__)
+        if reuse_url:
             if not args.no_browser:
-                webbrowser.open(old["url"])
+                webbrowser.open(reuse_url)
             return
-    except (OSError, ValueError, KeyError):
-        pass
+        run_server(root, instance, args, freed_port, startup)
+    finally:
+        startup.release()
+
+
+def run_server(root, instance, args, freed_port, startup):
     front = resources()
     if not (front / "index.html").exists():
         raise RuntimeError("缺少界面文件。开发运行请先在frontend目录执行npm install和npm run build。")
     # Bind once and pass the same socket to Uvicorn, avoiding a free-port race.
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.bind(("127.0.0.1", args.port))
+    sock.bind(("127.0.0.1", args.port or freed_port or 0))
     port = sock.getsockname()[1]
     sock.listen(128)
     url = f"http://127.0.0.1:{port}"
@@ -67,10 +72,11 @@ def main():
     from .store import uid
     instance_id = uid()
     app.state.instance_id = instance_id
+    app.add_event_handler("startup", startup.release)
     server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_config=None,
                                           proxy_headers=False, access_log=False))
     app.state.shutdown = lambda: setattr(server, "should_exit", True)
-    instance.write_text(json.dumps({"url": url, "id": instance_id}), encoding="utf-8")
+    instance.write_text(json.dumps({"url": url, "id": instance_id, "version": __version__}), encoding="utf-8")
     logging.info("工作台地址：%s", url)
 
     def show():

@@ -30,6 +30,7 @@ if __name__ == "__main__":
                 raise RuntimeError("浏览器测试服务启动超时")
             subprocess.run(["node", "scripts/e2e.cjs"], cwd=ROOT, env={**os.environ, "PLANNER_TEST_URL":url}, check=True)
             subprocess.run(["node", "scripts/e2e_import.cjs"], cwd=ROOT, env={**os.environ, "PLANNER_TEST_URL":url}, check=True)
+            subprocess.run(["node", "scripts/e2e_orders.cjs"], cwd=ROOT, env={**os.environ, "PLANNER_TEST_URL":url}, check=True)
         finally:
             if url:
                 try:
