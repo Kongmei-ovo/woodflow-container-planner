@@ -89,7 +89,9 @@ def select_release(releases, current, label):
 
 
 def entry_name(entry):
-    name = entry.filename
+    # ZipInfo normalizes backslashes on Windows; validate the original archive
+    # name so the same package checks apply on every OS.
+    name = entry.orig_filename
     if not entry.flag_bits & 0x800:
         try:
             name = name.encode('cp437').decode('utf-8')

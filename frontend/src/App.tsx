@@ -11,7 +11,7 @@ import History from './History';
 import Orders from './Orders';
 import Updates from './Updates';
 
-const clientVersion='1.1.0-beta.10';
+const clientVersion='1.1.0-beta.11';
 const pages=[{id:'overview',label:'我的排柜',icon:Boxes},{id:'products',label:'资料设置',icon:Database},{id:'history',label:'历史与备份',icon:HistoryIcon}];
 export default function App(){
   const [page,setPage]=useState('overview'),[data,setData]=useState<Bootstrap|null>(null),[error,setError]=useState(''),[message,setMessage]=useState<{text:string;error:boolean}|null>(null),[projectId,setProjectId]=useState(()=>localStorage.getItem('woodflow.project.v1')||''),[planId,setPlanId]=useState(()=>localStorage.getItem('woodflow.plan.v1')||''),[nav,setNav]=useState(false);

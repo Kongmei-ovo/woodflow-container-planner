@@ -2,7 +2,7 @@ from io import BytesIO
 import hashlib
 import json
 import time
-from zipfile import ZipFile
+from zipfile import ZipFile, ZipInfo
 
 import pytest
 
@@ -45,7 +45,9 @@ def test_choose_complete_official_release_and_channel():
 def test_reject_unsafe_archives(member):
     stream = BytesIO()
     with ZipFile(stream, 'w') as zipped:
-        zipped.writestr(member, 'invalid')
+        info = ZipInfo()
+        info.filename = info.orig_filename = member
+        zipped.writestr(info, 'invalid')
     with ZipFile(BytesIO(stream.getvalue())) as zipped, pytest.raises(ValueError):
         updates.validate_archive(zipped)
 
