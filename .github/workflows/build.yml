@@ -70,6 +70,7 @@ jobs:
         if: always()
         with:
           name: acceptance-previews
+          include-hidden-files: true
           path: |
             .local-data/manual-orders.png
             .local-data/mobile.png
@@ -144,6 +145,7 @@ jobs:
         if: failure()
         with:
           name: debug-${{ matrix.platform }}
+          include-hidden-files: true
           path: .local-data/e2e-failure.png
           if-no-files-found: ignore
       - uses: actions/upload-artifact@v7
