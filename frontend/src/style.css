@@ -16,3 +16,5 @@
 @media(max-width:680px){.order-filters{padding:15px;gap:10px}.order-filters>label:not(.search){flex-basis:43%;min-width:0}.order-tabs{padding:15px}.order-actions{min-width:210px}.order-list .table-wrap{overflow-x:auto}}
 
 .running-version{font-size:11px;color:var(--green);padding:5px 8px;background:#e7f0e5;border-radius:5px}
+
+.order-list .table-wrap{overflow-x:auto}.orders-table td:last-child,.orders-table th:last-child{position:sticky;right:0;background:#fff;min-width:230px;box-shadow:-2px 0 4px #203d2d08}@media(max-width:680px){.orders-table td:last-child,.orders-table th:last-child{position:static;box-shadow:none}}

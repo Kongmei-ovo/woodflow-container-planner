@@ -60,7 +60,9 @@ async function main(){
   await page.waitForFunction(()=>document.querySelectorAll('.container-option').length===8);
   assert.equal(await page.locator('.version-bar select').inputValue(),plan.id);
   await page.getByRole('button',{name:'我的排柜',exact:true}).click();
-  await page.screenshot({path:path.join(__dirname,'../.local-data/manual-orders.png'),fullPage:true});
+  await page.locator('.order-list').screenshot({path:path.join(__dirname,'../.local-data/manual-orders.png')});
+  await page.setViewportSize({width:1280,height:800});
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true,'Order list must not overflow the desktop page');
   assert.deepEqual(errors,[]);
   console.log('PASS: order list → edit metadata → search/status/factory/warehouse/date filters → details → cancel/delete → recycle bin → restore original plan');
   await browser.close();
