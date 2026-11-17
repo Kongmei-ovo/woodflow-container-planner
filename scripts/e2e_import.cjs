@@ -14,6 +14,15 @@ async function main(){
   assert.ok(state.products.every(p=>['A','B','C'].includes(p.code)&&p.description.startsWith('TEST ')),'Import acceptance requires synthetic sandbox records');
   sandboxConfirmed=true;
   await page.getByRole('button',{name:'新建排柜',exact:true}).click();
+  await page.getByLabel('选择Excel文件').setInputFiles(path.join(root,'.local-data/browser-fixtures/catalog.xlsx'));
+  await page.getByRole('heading',{name:'catalog.xlsx',exact:true}).waitFor();
+  await page.route('**/api/imports/preview',route=>route.fulfill({status:422,contentType:'application/json',body:JSON.stringify({detail:'模拟读取失败'})}));
+  await page.getByLabel('选择Excel文件').setInputFiles(path.join(root,'.local-data/browser-fixtures/grouped-order.xlsx'));
+  await page.getByText('模拟读取失败',{exact:true}).waitFor();
+  await page.getByText('未能读取：grouped-order.xlsx',{exact:true}).waitFor();
+  assert.equal(await page.getByRole('heading',{name:'catalog.xlsx',exact:true}).count(),0,'A failed new upload must clear the previous file preview');
+  assert.equal(await page.getByRole('button',{name:'确认字段并导入',exact:true}).count(),0,'A failed upload must not leave an old import action');
+  await page.unroute('**/api/imports/preview');
   await page.getByLabel('选择Excel文件').setInputFiles(path.join(root,'.local-data/browser-fixtures/grouped-order.xlsx'));
   await page.getByLabel('工作表',{exact:true}).waitFor();
   assert.equal(await page.getByLabel('工作表',{exact:true}).inputValue(),'订单');
@@ -48,7 +57,7 @@ async function main(){
   assert.equal(details.lines.length,8);
   assert.equal(details.lines.reduce((sum,l)=>sum+l.original_qty,0),570);
   assert.equal(details.issue_count,0);
-  console.log('PASS: choose order sheet → distinguish pieces/CBM → reject product sheet → change header → import correct warehouse quantities');
+  console.log('PASS: clear stale preview after failed upload → choose order sheet → distinguish pieces/CBM → reject product sheet → change header → import correct warehouse quantities');
   await browser.close();
 }
 main().catch(async error=>{console.error(error);if(page&&sandboxConfirmed){try{await page.screenshot({path:path.join(root,'.local-data/e2e-failure.png'),fullPage:true});console.error(await page.locator('body').innerText());}catch{}}await browser?.close();process.exitCode=1;});
