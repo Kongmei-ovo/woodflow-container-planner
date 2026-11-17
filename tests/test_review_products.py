@@ -109,3 +109,15 @@ def test_matching_does_not_replace_existing_binding(client):
     response=save(client,current,bind_matching=True)
     assert response.status_code==200,response.text
     assert response.json()['lines'][1]['product_id']==original['id']
+
+
+def test_existing_identifier_ambiguity_does_not_block_measurement_completion(client):
+    identifier=setup_order(client)
+    p=client.get('/api/projects/'+identifier).json()
+    existing=client.get('/api/bootstrap').json()['products'][0]
+    client.app.state.store.put('product',existing,action='TEST duplicate legacy record')
+    values={**existing,'weight':'21','confirm_shared':True}
+    response=save(client,p,product_id=existing['id'],quick_product=values)
+    assert response.status_code==200,response.text
+    assert response.json()['lines'][0]['product']['weight']=='21'
+    assert len(client.get('/api/bootstrap').json()['products'])==2

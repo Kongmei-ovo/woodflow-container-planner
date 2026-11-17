@@ -36,6 +36,8 @@ def prepare_product(store, values, line, selected_id):
         if other['id'] == identifier:
             continue
         for field, title in (('code', '产品编码'), ('oem', 'OEM编码'), ('barcode', '条码')):
+            if previous and codekey(previous.get(field)) == codekey(product[field]):
+                continue  # Existing ambiguity must not block completing unrelated measurements.
             if valid_code(product[field]) and codekey(product[field]) == codekey(other.get(field)):
                 raise ValueError(f'{title}已存在：{other.get("code") or other.get("oem") or "无码产品"} · {other.get("description", "")}。请选择已有产品，避免重复新增。')
     product['factory_candidates'] = [product['factory']]

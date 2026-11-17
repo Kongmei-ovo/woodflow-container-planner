@@ -7,7 +7,8 @@ export const realCode=(value:string)=>!!codeKey(value)&&!placeholders.has(codeKe
 export function quickDefaults(product:Product|undefined,sourceCode:string,description:string):QuickProduct{return {id:product?.id,revision:product?.revision,code:product?product.code:(realCode(sourceCode)?sourceCode:''),oem:product?.oem||'',barcode:product?.barcode||'',description:product?.description||description,factory:product?.factory||'',cbm:product?.cbm||'',weight:product?.weight||'',confirm_shared:false};}
 
 export default function QuickProductFields({form,onChange,products,onUseExisting,onCancel,busy}:{form:QuickProduct;onChange:(next:QuickProduct)=>void;products:Product[];onUseExisting:(id:string)=>void;onCancel:()=>void;busy:boolean}){
-  const duplicates=products.filter(p=>p.id!==form.id&&(['code','oem','barcode'] as const).some(field=>realCode(form[field])&&codeKey(p[field])===codeKey(form[field])));
+  const original=products.find(p=>p.id===form.id);
+  const duplicates=products.filter(p=>p.id!==form.id&&(['code','oem','barcode'] as const).some(field=>(!original||codeKey(original[field])!==codeKey(form[field]))&&realCode(form[field])&&codeKey(p[field])===codeKey(form[field])));
   const factories=[...new Set(['利泰','续泰','好事达',...products.map(p=>p.factory).filter(Boolean)])];
   function change(field:keyof QuickProduct,value:string){onChange({...form,[field]:value});}
   return <fieldset className="quick-product" disabled={busy}><legend>{form.id?'就地补齐产品资料':'快速新增新品'}</legend><p className="hint">名称和原编码已带入。只需核实工厂、完整一件产品的总体积与毛重，保存审核时一起存入资料库并绑定订单。</p>
