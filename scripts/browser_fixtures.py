@@ -23,6 +23,8 @@ def create(root):
                              ["A", "TEST BEDSIDE A", "A", 700, 0, 0, 0, "2026/12/21、2026/12/28"],
                              ["B", "TEST DESK B", "B", 400, 0, 0, 0, "2026/12/21"],
                              ["C", "TEST CABINET C", "A", 0, 100, 0, 0, "2026/12/21"]]})
+    write("quick-order.xlsx", {"订单": [["Item ID", "Item Name", "DCSYD", "DCVIC", "LSD"],
+                                     ["D", "TEST NEW DESK D", 100, 50, "2026/12/21"]]})
     with xlsxwriter.Workbook(str(root / "grouped-order.xlsx")) as book:
         catalog = book.add_worksheet("产品资料")
         catalog.write_row(0, 0, ["Product code", "Product Description", "CBM", "G.W"])

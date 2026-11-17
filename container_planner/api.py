@@ -319,7 +319,12 @@ def create_app(root: Path | None = None, frontend: Path | None = None):
         for field in ("product_id", "warehouse", "abc", "exclusion_reason"):
             if field in payload:
                 line[field] = text(payload[field])
-        if payload.get("product_id"):
+        product_change = None
+        if "quick_product" in payload:
+            from .review_products import prepare_product
+            product_change = prepare_product(store, payload["quick_product"], line, line.get("product_id"))
+            line["product_id"] = product_change[2]
+        elif payload.get("product_id"):
             store.get("product", payload["product_id"])
         if "updated_qty" in payload:
             previous_qty = line.get("updated_qty")
@@ -340,12 +345,13 @@ def create_app(root: Path | None = None, frontend: Path | None = None):
         if "excluded" in payload:
             line["excluded"] = bool(payload["excluded"])
         if payload.get("bind_matching") and line.get("product_id"):
-            from .excel import normalized, codekey
+            from .review_products import same_source_product
             for other in p["lines"]:
-                if (codekey(other["source_code"]) == codekey(line["source_code"])
-                        and normalized(other["description"]) == normalized(line["description"])):
+                if not other.get("product_id") and same_source_product(line, other):
                     other["product_id"] = line["product_id"]
-        result = store.put("project", p, project_id, payload["revision"], "人工审核订单行")
+        changes = [product_change] if product_change else []
+        changes.append(("project", p, project_id, payload["revision"], "人工审核订单行"))
+        result = store.put_many(changes)[-1]
         return project_view(store, result)
 
     @app.post("/api/projects/{project_id}/rules")

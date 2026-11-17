@@ -7,11 +7,11 @@ let browser,page;
 async function main(){
   browser=await chromium.launch({headless:true});page=await browser.newPage({viewport:{width:1440,height:1000}});
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
-  let state={status:'available',message:'发现新版本，可下载并准备更新。',current_version:'1.1.0-beta.11',latest_version:'1.1.0-beta.12',platform:'Windows64',release_url:'https://github.com/Kongmei-ovo/woodflow-container-planner/releases/tag/v1.1.0-beta.12',notes:'TEST update notes',downloaded:0,total:100};
+  let state={status:'available',message:'发现新版本，可下载并准备更新。',current_version:'1.1.0-beta.12',latest_version:'1.1.0-beta.13',platform:'Windows64',release_url:'https://github.com/Kongmei-ovo/woodflow-container-planner/releases/tag/v1.1.0-beta.13',notes:'TEST update notes',downloaded:0,total:100};
   await page.route('**/api/updates/check',route=>route.fulfill({json:state}));
   await page.route('**/api/updates',route=>route.fulfill({json:state}));
   let installed=0,restarted=0;
-  await page.route('**/api/updates/install',route=>{installed++;assert.equal(route.request().postDataJSON().version,'1.1.0-beta.12');state={...state,status:'downloading',message:'正在下载官方更新包…',downloaded:50};return route.fulfill({json:state});});
+  await page.route('**/api/updates/install',route=>{installed++;assert.equal(route.request().postDataJSON().version,'1.1.0-beta.13');state={...state,status:'downloading',message:'正在下载官方更新包…',downloaded:50};return route.fulfill({json:state});});
   await page.route('**/api/updates/restart',route=>{restarted++;return route.fulfill({status:422,json:{detail:'TEST restart blocked while solving'}});});
   await page.goto(base);await page.getByRole('heading',{name:'我的排柜',exact:true}).waitFor();
   await page.getByRole('button',{name:'检查更新',exact:true}).click();
@@ -44,7 +44,7 @@ async function main(){
   await modal.getByText(state.message,{exact:true}).waitFor();
   assert.equal(await modal.getByRole('link',{name:'前往下载页'}).getAttribute('href'),state.release_url);
   await modal.getByRole('button',{name:'关闭',exact:true}).click();
-  state={...state,status:'available',message:'发现新版本，可下载并准备更新。',latest_version:'1.1.0-beta.12'};
+  state={...state,status:'available',message:'发现新版本，可下载并准备更新。',latest_version:'1.1.0-beta.13'};
   await page.getByRole('button',{name:'检查更新',exact:true}).click();
   await modal.getByRole('button',{name:'下载并准备更新',exact:true}).waitFor();
   await page.screenshot({path:path.join(__dirname,'../.local-data/manual-updates.png'),fullPage:true});

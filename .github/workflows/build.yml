@@ -64,7 +64,7 @@ jobs:
           sudo apt-get install -y fonts-noto-cjk poppler-utils
           python scripts/create_trial_guide.py
           node scripts/render_guide.cjs
-          test "$(pdfinfo docs/release/使用指南.pdf | awk '/^Pages:/ {print $2}')" -eq 6
+          test "$(pdfinfo docs/release/使用指南.pdf | awk '/^Pages:/ {print $2}')" -eq 7
           pdftoppm -scale-to 1100 -png docs/release/使用指南.pdf .local-data/guide-page
       - uses: actions/upload-artifact@v7
         if: always()
@@ -74,6 +74,7 @@ jobs:
           path: |
             .local-data/manual-orders.png
             .local-data/manual-updates.png
+            .local-data/manual-quick-product.png
             .local-data/mobile.png
             .local-data/guide-page-*.png
             .local-data/e2e-failure.png
