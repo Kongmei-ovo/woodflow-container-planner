@@ -20,6 +20,9 @@ def check(tag=None):
         assert data["version"] == __version__, name
         if name == "package-lock.json":
             assert data["packages"][""]["version"] == __version__, name
+    client = (ROOT / "frontend/src/App.tsx").read_text()
+    match = re.search(r"const\s+clientVersion\s*=\s*['\"]([^'\"]+)['\"]", client)
+    assert match and match.group(1) == __version__, "App.tsx 的 clientVersion 须与程序版本一致，避免更新后重复刷新"
     if tag:
         assert tag == "v"+__version__, "Tag须与程序及前端版本一致"
     return __version__

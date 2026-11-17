@@ -12,7 +12,7 @@
 
 ## 发布新版本
 
-1. 修改 `container_planner/__init__.py` 的 `__version__`，同步 `frontend/package.json`、`frontend/package-lock.json` 顶层和根包版本。
+1. 修改 `container_planner/__init__.py` 的 `__version__`，同步 `frontend/package.json`、`frontend/package-lock.json` 顶层和根包版本，以及 `frontend/src/App.tsx` 的 `clientVersion`。CI 检查三处一致，避免更新后前端误判版本并重复刷新。
 2. 更新 `CHANGELOG.md` 和 `docs/RELEASE_NOTES.md`。规则变化同步修改 `docs/release/本版规则说明.txt`；说明书文字在 `scripts/create_trial_guide.py`，截图在 `docs/assets`。
 3. 提交并推送，让 Actions 执行检查、构建前端和生成说明书。示例（将版本号替换为本次的新版本）：
 
