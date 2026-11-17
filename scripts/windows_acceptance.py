@@ -48,6 +48,7 @@ if __name__ == "__main__":
             assert restored.status_code == 200, f"恢复空资料备份失败：{restored.status_code} {restored.text}"
             subprocess.run([sys.executable, "-m", "scripts.browser_fixtures"], cwd=root, check=True)
             subprocess.run(["node", "scripts/e2e.cjs"], cwd=root, env={**os.environ, "PLANNER_TEST_URL": url}, check=True)
+            subprocess.run(["node", "scripts/e2e_import.cjs"], cwd=root, env={**os.environ, "PLANNER_TEST_URL": url}, check=True)
             # Restart from saved records and re-export the prior plan.
             state = client.get("/api/bootstrap").json()
             plans = state["plans"]

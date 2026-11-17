@@ -184,8 +184,9 @@ def create_app(root: Path | None = None, frontend: Path | None = None):
         if sheet not in book:
             raise ValueError("工作表不存在。")
         rows = book[sheet]
-        header = next((r["cells"] for r in rows if r["row"] == header_row), {})
-        return {"headers": header, "preview": [r for r in rows if r["row"] >= header_row][:8]}
+        result = suggest(rows, header_row=header_row)
+        result["preview"] = [r for r in rows if r["row"] >= header_row][:8]
+        return result
 
     @app.get("/api/imports/{import_id}/original")
     def original(import_id: str):

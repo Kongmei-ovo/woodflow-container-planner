@@ -77,7 +77,7 @@ def commit_import(store, imp, config):
     if type(blank_as_zero) is not bool:
         raise ValueError("请明确确认空白仓库数量是否按0处理。")
     for sheet in sheets:
-        auto = suggest(book[sheet])
+        auto = suggest(book[sheet], header_row=config.get("header_row") if sheet == selected else None)
         header_row = config.get("header_row", auto["header_row"]) if sheet == selected else auto["header_row"]
         mapping = config.get("mapping") or auto["mapping"]
         if sheet != selected:
@@ -86,9 +86,25 @@ def commit_import(store, imp, config):
                   "prices": ["oem"], "order": ["description"]}[kind]
         if any(not mapping.get(f) for f in needed):
             raise ValueError(f"{sheet}：请对应必要字段：{'、'.join(needed)}。")
+        if kind == "order" and any(not mapping.get(w) for w in auto["ambiguous_warehouses"]):
+            missing = [w for w in auto["ambiguous_warehouses"] if not mapping.get(w)]
+            raise ValueError(f"{'、'.join(missing)}有重复仓库列，单位尚未明确，请手动选择订购数量列。")
         if kind == "order" and not (any(mapping.get(w) for w in WAREHOUSES)
                                      or (mapping.get("quantity") and mapping.get("warehouse"))):
-            raise ValueError("请对应至少一个目的仓数量列，或对应‘数量’和‘目的仓’两列。")
+            alternatives = [name for name, rows in book.items() if name != sheet and suggest(rows)["order_ready"]]
+            reason = ("当前表更像产品资料表，包含体积或毛重，未识别到客户订购数量。"
+                      if auto["sheet_kind"] == "catalog" else "当前表未对应客户订购数量。")
+            action = (f"请切换到订单工作表：{'、'.join(alternatives)}。" if alternatives else
+                      "请检查工作表和表头行；订单需对应至少一个目的仓数量列，或‘数量’与‘目的仓’两列。产品表请到资料设置导入。")
+            raise ValueError(f"{sheet}：{reason}{action}")
+        if kind == "order":
+            quantities = [mapping.get(w) for w in WAREHOUSES if mapping.get(w)]
+            quantities += [mapping["quantity"]] if mapping.get("quantity") and not quantities else []
+            invalid = [col for col in quantities if auto["column_units"].get(col) == "volume"]
+            if invalid:
+                raise ValueError(f"{sheet}：{'、'.join(invalid)}列是CBM体积，不能作为订购件数。请改选数量区的仓库列。")
+            if len(quantities) != len(set(quantities)):
+                raise ValueError("不同目的仓不能使用同一个数量列，请检查仓库字段对应关系。")
         for row in book[sheet]:
             if row["row"] <= header_row:
                 continue
