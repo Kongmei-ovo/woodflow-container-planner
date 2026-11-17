@@ -71,7 +71,7 @@ def run_server(root, instance, args, freed_port, startup):
     from .store import uid
     instance_id = uid()
     app.state.instance_id = instance_id
-    app.add_event_handler("startup", startup.release)
+    app.router.add_event_handler("startup", startup.release)
     server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_config=None,
                                           proxy_headers=False, access_log=False))
     app.state.shutdown = lambda: setattr(server, "should_exit", True)

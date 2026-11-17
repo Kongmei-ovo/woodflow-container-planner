@@ -65,11 +65,13 @@ def main():
             lines.append("[通过] Excel写入和重新读取")
             root = Path(__file__).resolve().parent.parent
             server_data = temp / "浏览器 服务测试"
-            process = subprocess.Popen([sys.executable, str(root / "run_planner.py"), "--data-dir", str(server_data), "--no-browser"],
-                                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            startup_log = temp / "startup-output.txt"
+            with startup_log.open("w", encoding="utf-8") as startup_output:
+                process = subprocess.Popen([sys.executable, str(root / "run_planner.py"), "--data-dir", str(server_data), "--no-browser"],
+                                           stdout=startup_output, stderr=startup_output)
             for _ in range(100):
                 if process.poll() is not None:
-                    raise RuntimeError(f"本机服务提前退出：{process.returncode}")
+                    raise RuntimeError(f"本机服务提前退出：{process.returncode}\n{startup_log.read_text(encoding='utf-8', errors='replace')[-4000:]}")
                 try:
                     url = json.loads((server_data / "instance.json").read_text())["url"]
                     with client.open(url + "/api/health", timeout=2) as res:
